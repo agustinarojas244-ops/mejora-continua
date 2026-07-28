@@ -538,6 +538,32 @@
     });
   }
 
+  // ==================================================================
+  //  ENVÍO DE LA COPIA CENTRAL A SHAREPOINT (vía Google Apps Script)
+  //  Si algún día cambiás el script o la clave, editá estas dos líneas:
+  // ==================================================================
+  const SP_URL   = "https://script.google.com/macros/s/AKfycbzd56alc3eXQWoPSuNYJJf18YuFL4YQmlMxjjiCNbxa5oj7mtGCjhBtlR21jAWuoETbCw/exec";
+  const SP_CLAVE = "agussoluciona2412";
+
+  async function enviarASharePoint(base64, nombre){
+    if(!SP_URL || SP_URL.indexOf("script.google.com") === -1) return;
+    const payload = {
+      clave: SP_CLAVE,
+      nombre: nombre,
+      contenido: base64,
+      responsable: $("inResp").value || "",
+      fecha: $("inFecha").value || ""
+    };
+    try{
+      await fetch(SP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+    }catch(e){ /* sin internet: el usuario igual tiene su copia descargada */ }
+  }
+
   async function descargarPDF(){
     const btn = $("btnPdf"); const t = btn.textContent; btn.textContent="Generando..."; btn.disabled=true;
     try{
@@ -553,8 +579,12 @@
       const pw = pdf.internal.pageSize.getWidth();
       const ph = pdf.internal.pageSize.getHeight();
       pdf.addImage(img, "PNG", 0, 0, pw, ph);
-      pdf.save(nombreArchivo()+".pdf");
-      guardarEnHistorial(false);
+      const fname = nombreArchivo()+".pdf";
+      const dataUri = pdf.output("datauristring");
+      pdf.save(fname);                       // copia local del usuario
+      guardarEnHistorial(false);             // historial en el navegador
+      btn.textContent = "Enviando copia...";
+      await enviarASharePoint(dataUri.split(",")[1], fname);  // copia central a SharePoint
     }catch(e){ alert("No se pudo generar el PDF. Revisá tu conexión e intentá de nuevo."); }
     btn.textContent=t; btn.disabled=false;
   }
